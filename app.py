@@ -92,7 +92,8 @@ def data_signature():
 
 
 @st.cache_data
-def load(_sig):
+def load(sig):   # ⚠️ 인자명에 밑줄을 붙이면 안 됨 — Streamlit은 '_'로 시작하는 인자를
+                 # 캐시 키에서 제외하므로 시그니처를 넘겨도 무효화가 일어나지 않는다.
     k = pd.read_csv(f"{BASE}/data/processed/kam_typed.csv", dtype={"corp_code": str},
                     encoding="utf-8-sig")
     k["corp_code"] = k.corp_code.str.zfill(8)
