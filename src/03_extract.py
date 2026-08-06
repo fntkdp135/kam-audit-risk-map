@@ -407,9 +407,14 @@ def main():
                     docs.append((nm, txt))
             if not docs:
                 continue
-            # 연결 우선(2번 프로젝트의 CFS 우선 원칙 승계)
+            # 연결 우선, firm-year당 **한 문서만** 채택한다(2번 프로젝트의 CFS 우선 원칙).
+            # 연결·별도를 둘 다 처리하면 같은 사건이 두 번 계상된다. 예를 들어 네오위즈 FY2024는
+            # 연결에서 '현금창출단위(영업권)의 회수가능액 측정', 별도에서 '종속기업투자주식
+            # 손상검사'로 기재되는데 이는 같은 사건을 두 재무제표에서 다르게 부른 것이다.
+            # 실제로 종속·관계기업투자 평가 유형의 85%가 별도보고서에서 나와,
+            # 둘 다 세면 부문별 유형 분포가 문서 구성에 따라 왜곡된다.
             docs.sort(key=lambda x: 0 if "연결" in x[0] else 1)
-            for nm, txt in docs:
+            for nm, txt in docs[:1]:
                 p = parse_report(to_text(txt), nm)
                 items = p.pop("_items")
                 meta_rows.append(dict(corp_code=cc, fy=fy, 기업명=info.기업명, 군=info.군,
