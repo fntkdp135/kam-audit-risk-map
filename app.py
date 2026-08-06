@@ -70,7 +70,8 @@ MODIFIED = ["의견거절", "한정의견", "부적정의견"]
 
 
 DATA_FILES = ["data/processed/kam_typed.csv", "data/processed/panel_outcomes.csv",
-              "data/results/opinion_basis_typed.csv"]
+              "data/results/opinion_basis_typed.csv", "data/results/linkage.csv",
+              "data/processed/report_meta.csv"]
 
 
 def data_signature():
@@ -109,6 +110,23 @@ def load(sig):   # ⚠️ 인자명에 밑줄을 붙이면 안 됨 — Streamlit
     b["corp_code"] = b.corp_code.str.zfill(8)
     b["군"] = b["군"].map(GNAME).fillna(b["군"])
     return k, p, b
+
+
+@st.cache_data
+def load_linkage(sig):
+    d = pd.read_csv(f"{BASE}/data/results/linkage.csv", encoding="utf-8-sig")
+    return d
+
+
+@st.cache_data
+def load_gc_text(sig):
+    """계속기업 불확실성 단락 원문 (firm-year당 연결 우선 1행)."""
+    m = pd.read_csv(f"{BASE}/data/processed/report_meta.csv",
+                    dtype={"rcept_no": str, "corp_code": str}, encoding="utf-8-sig")
+    m["corp_code"] = m.corp_code.str.zfill(8)
+    m["_p"] = (m.doc_type != "연결").astype(int)
+    m = m.sort_values(["corp_code", "fy", "_p"]).drop_duplicates(["corp_code", "fy"])
+    return m[["corp_code", "fy", "gc_text"]]
 
 
 kam, pan, bas = load(data_signature())
@@ -311,98 +329,103 @@ if sec.startswith("01"):
 
 # ─────────────────────────────────────────────── 02
 elif sec.startswith("02"):
-    obs = pan[pan.sig_2y.notna()]
-    gco = pan[(pan.has_gc == 1) & (pan.sig_2y.notna())]
+    lk = load_linkage(data_signature())
+    gcrec = pan[pan.has_gc == 1]
+    n_gc, n_mod = len(gcrec), len(bas)
 
-    def worst(r):
-        s = " ".join([x for x in [r.why_t1, r.why_t2] if isinstance(x, str)])
-        if "비적정의견" in s:
-            return "의견변형"
-        if "제출 중단" in s or "보고서 없음" in s:
-            return "보고서 제출 중단"
-        if "GC 재기재" in s:
-            return "계속기업 불확실성 재기재"
-        return "변화 없음"
+    def path_stat(name, denom):
+        s_ = lk[lk.경로 == name]
+        m = int(s_.일치.sum()) if s_.일치.notna().any() else None
+        return dict(n=len(s_), firms=s_.기업명.nunique(), gap=s_.간격.median(),
+                    match=m, mfirms=(s_[s_.일치 == 1].기업명.nunique() if m else 0),
+                    denom=denom, df=s_)
 
-    g = gco.copy()
-    g["후속"] = g.apply(worst, axis=1)
-    vc = g.후속.value_counts()
-    n_gc = len(g)
-    n_gc_all = int(pan.has_gc.sum())
-    # t+2까지 못 본 건(마지막 사업연도 직전)을 분리해 표기한다 — '2년 내'가 균일하지 않음
-    n_t1only = int((gco.sig_t1.notna() & gco.sig_t2.isna()).sum())
-    FYL = int(pan.fy.max())
+    P1 = path_stat("KAM → 계속기업 불확실성", n_gc)
+    P2 = path_stat("KAM → 의견변형", n_mod)
+    P3 = path_stat("계속기업 불확실성 → 의견변형", n_mod)
 
-    # ── 세 축의 겹침 (분모는 감사보고서를 확보한 firm-year)
-    rep = pan[pan.has_report == 1]
-    A = rep.n_kam.fillna(0) > 0          # 핵심감사사항 기재
-    B = rep.has_gc == 1                  # 계속기업 불확실성 기재
-    C = rep.adverse == 1                 # 의견변형
-    n_rep, nA, nB, nC = len(rep), int(A.sum()), int(B.sum()), int(C.sum())
-    ab, ac, bc, abc = int((A & B).sum()), int((A & C).sum()), int((B & C).sum()), \
-        int((A & B & C).sum())
+    head("Section 02 · 그 위험은 실제로 이어졌는가",
+         "지목된 위험이 이후 연도에<br>계속기업 불확실성·의견변형으로 이어졌는가",
+         f"<b>같은 해 보고서에서는 확인할 수 없음.</b> 회계감사기준서 1701은 의견변형을 초래하는 "
+         f"사항과 계속기업 관련 중요한 불확실성이 그 특성상 핵심감사사항이더라도 "
+         f"<b>핵심감사사항 단락에 기술해서는 안 된다</b>고 정하고 있음(각각 의견근거 단락·계속기업 "
+         f"단락에 기술). 따라서 세 기재가 한 보고서에 겹치는 일은 제도상 일어나지 않으며, "
+         f"검증은 <b>연도를 건너뛰어</b> 해야 함. 그리고 단순히 이어졌는지가 아니라 "
+         f"<b>같은 사유로 이어졌는지</b>를 봐야 감사인이 지목한 위험이 실제로 핵심이었는지 알 수 있음.")
+    figs([("KAM → 이후 계속기업 불확실성", f"{P1['n']}건",
+           f"계속기업 기재 {n_gc}건 중 {P1['n']/n_gc*100:.0f}% · {P1['firms']}개사", "amb"),
+          ("KAM → 이후 의견변형", f"{P2['n']}건",
+           f"의견변형 {n_mod}건 중 {P2['n']/n_mod*100:.0f}% · 사유까지 일치 "
+           f"<b>{P2['match']}건</b>({P2['mfirms']}개사)", "amb"),
+          ("계속기업 불확실성 → 이후 의견변형", f"{P3['n']}건",
+           f"의견변형 {n_mod}건 중 {P3['n']/n_mod*100:.0f}% · 사유까지 일치 "
+           f"<b>{P3['match']}건</b>({P3['mfirms']}개사)", "neg"),
+          ("가장 강한 연결", f"{P3['match']/P3['n']*100:.0f}%",
+           f"계속기업 불확실성 → 의견변형, 간격 중앙값 {P3['gap']:.0f}년", "neg")])
 
-    head("Section 02 · 세 축은 이어지는가",
-         "세 기재는 같은 것을 가리키지 않는다",
-         f"감사보고서에서 읽히는 세 가지는 서로 다른 것을 말함. "
-         f"<b>핵심감사사항</b>은 감사인이 공개적으로 밝히기로 한 위험이고, "
-         f"<b>계속기업 불확실성</b>은 기업의 재무적 존속 문제이며, "
-         f"<b>의견변형</b>은 감사 수행 자체가 막힌 결과임. "
-         f"보고서를 확보한 {n_rep} firm-year에서 셋이 실제로 얼마나 겹치는지 세어 보면, "
-         f"<b>핵심감사사항과 의견변형이 함께 나타난 것은 {ac}건</b>, "
-         f"<b>셋이 동시에 나타난 것은 {abc}건</b>임. "
-         f"이 절은 인과가 아니라 <b>세 기재가 어떻게 겹치고, 각 기재 이후 무엇이 이어졌는지</b>를 본 것임.",
-         warn=True)
-    figs([("핵심감사사항 기재", f"{nA}건", f"{n_rep} firm-year 중 {nA/n_rep*100:.0f}%", ""),
-          ("계속기업 불확실성", f"{nB}건", f"{nB/n_rep*100:.1f}%", "amb"),
-          ("의견변형", f"{nC}건", f"{nC/n_rep*100:.1f}% · 한정·부적정·의견거절", "neg"),
-          ("셋이 동시에 나타난 건", f"{abc}건",
-           f"핵심감사사항 ∩ 의견변형 {ac}건 · 계속기업 ∩ 의견변형 {bc}건", "")])
-
-    st.markdown(f'<div class="panel"><span class="h">왜 겹치지 않는가</span>'
-                f'<b>의견거절·한정의견 보고서에는 핵심감사사항을 기재하지 않기 때문</b>임. '
-                f'감사 범위가 제한돼 의견을 낼 수 없는 상황에서 "가장 유의적인 사항"을 따로 꼽는 것이 '
-                f'의미가 없기 때문이고, 그래서 둘이 한 보고서에 같이 실리는 일이 거의 없음({ac}건). '
-                f'계속기업 불확실성은 의견변형과 {bc}건 겹치는데, 이는 존속이 흔들리면 감사 증거 확보도 '
-                f'같이 어려워지기 때문으로 보임.</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="panel"><span class="h">읽는 법</span>'
+                f'"연결"은 <b>이후 연도에 그 기재가 나타났다</b>는 뜻이고, "사유 일치"는 '
+                f'<b>선행 핵심감사사항의 회계쟁점이 뒤의 의견변형 근거에 다시 등장했다</b>는 뜻임. '
+                f'예를 들어 어떤 회사가 FY2021에 영업권 손상을 핵심감사사항으로 받았고 FY2022 '
+                f'의견거절 근거가 "자산의 실재성·평가 증거 미확보"였다면, 그 핵심감사사항은 '
+                f'경고로서 실제 의미가 있었던 것임.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
-    st.markdown("#### 계속기업 불확실성이 기재된 뒤에는 무엇이 이어졌나")
-    st.markdown(f'<div class="panel"><span class="h">'
-                f'"이후"는 각 기재의 사업연도(t) 다음 해를 말함</span>'
-                f'기재 건마다 사업연도가 다르므로 보는 구간도 다름 — FY2019에 기재된 건은 2020·2021을, '
-                f'FY2023에 기재된 건은 2024·2025를 봄. '
-                f'마지막 사업연도인 <b>FY{FYL}에 기재된 {n_gc_all-n_gc}건은 볼 다음 해가 없어 제외</b>했고, '
-                f'FY{FYL-1}에 기재된 <b>{n_t1only}건은 t+1만 관측</b>됨(t+2는 아직 없음). '
-                f'따라서 아래는 <b>후속 관측이 가능한 {n_gc}건</b> 기준임.</div>',
+    st.markdown("#### 세 경로")
+    tbl = pd.DataFrame([
+        {"경로": "① 핵심감사사항 → 이후 계속기업 불확실성",
+         "연결": f"{P1['n']}건 / {n_gc}건", "기업 수": P1["firms"],
+         "간격(중앙값)": f"{P1['gap']:.0f}년", "사유 일치": "—"},
+        {"경로": "② 핵심감사사항 → 이후 의견변형",
+         "연결": f"{P2['n']}건 / {n_mod}건", "기업 수": P2["firms"],
+         "간격(중앙값)": f"{P2['gap']:.0f}년",
+         "사유 일치": f"{P2['match']}건 ({P2['match']/P2['n']*100:.0f}%)"},
+        {"경로": "③ 계속기업 불확실성 → 이후 의견변형",
+         "연결": f"{P3['n']}건 / {n_mod}건", "기업 수": P3["firms"],
+         "간격(중앙값)": f"{P3['gap']:.0f}년",
+         "사유 일치": f"{P3['match']}건 ({P3['match']/P3['n']*100:.0f}%)"},
+    ])
+    st.dataframe(tbl, use_container_width=True, hide_index=True)
+    st.markdown(f'<div class="panel"><span class="h">읽어낸 것</span>'
+                f'<b>계속기업 불확실성은 의견변형의 실질적 선행지표로 작동함</b> — 연결 {P3["n"]}건 중 '
+                f'{P3["match"]}건이 근거 단락에서 계속기업을 사유로 다시 들었고, 간격은 대부분 1년임. '
+                f'반면 <b>핵심감사사항은 연결이 약함</b>({P2["n"]}건 연결, 사유 일치 {P2["match"]}건). '
+                f'다만 일치한 건은 {P2["mfirms"]}개사에 몰려 있어 일반화할 수 없고, '
+                f'감사인이 핵심감사사항에 수위를 조절해 적는다는 실무 관행을 고려하면 '
+                f'<b>연결이 약하다는 것 자체가 이 기재의 성격</b>을 보여주는 것으로 읽어야 함.</div>',
                 unsafe_allow_html=True)
 
-    L, R = st.columns([1, 1.05])
-    with L:
-        order = ["의견변형", "계속기업 불확실성 재기재", "보고서 제출 중단", "변화 없음"]
-        vals = [int(vc.get(o, 0)) for o in order]
-        fig = go.Figure(go.Bar(y=[b(x) for x in order[::-1]], x=vals[::-1], orientation="h",
-                               marker_color=[MUTE, AMBER, AMBER, CORAL][::-1],
-                               hovertemplate="%{y} %{x}건<extra></extra>"))
-        fig.update_layout(title=f"계속기업 불확실성 기재 {n_gc}건의 후속 감사결과 (t+1·t+2)")
-        chart(fig, h=330)
-    with R:
-        st.markdown(f'<div class="panel"><span class="h">"부실"이라는 한 덩어리로 묶지 않은 이유</span>'
-                    f'계속기업 불확실성이 이듬해 다시 기재되는 것은 의견변형과 성격이 전혀 다름 '
-                    f'(감사의견은 적정일 수 있음). 셋을 합쳐 하나의 비율로 제시하면 '
-                    f'<b>{(n_gc-int(vc.get("변화 없음",0)))/n_gc*100:.0f}%가 부실</b>처럼 읽히지만, '
-                    f'의견변형까지 간 것은 <b>{int(vc.get("의견변형",0))}건'
-                    f'({int(vc.get("의견변형",0))/n_gc*100:.0f}%)</b>임. '
-                    f'그래서 합치지 않고 세 갈래로 나눠 제시함.</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="body"><b>핵심감사사항이 계속기업의 조기경보가 되는가</b><br>'
-                    f'검정할 수 없었음. 계속기업 불확실성이 기재된 {n_gc_all}건 중 <b>직전 사업연도에 '
-                    f'핵심감사사항이 관측되는 건은 5건</b>뿐이었음. 계속기업 문제가 붙는 기업은 직전 '
-                    f'연도에 이미 의견변형인 경우가 많고, 그 보고서에는 핵심감사사항이 없기 때문임. '
-                    f'표본이 부족한 것이 아니라 <b>제도의 구조상 조기경보로 기능할 여지가 없음</b>.</div>',
-                    unsafe_allow_html=True)
+    st.markdown("#### 실제로 이어진 사례")
+    pick = st.radio("경로", ["② 핵심감사사항 → 의견변형", "③ 계속기업 불확실성 → 의견변형",
+                            "① 핵심감사사항 → 계속기업 불확실성"],
+                    horizontal=True, label_visibility="collapsed")
+    key = {"①": "KAM → 계속기업 불확실성", "②": "KAM → 의견변형",
+           "③": "계속기업 불확실성 → 의견변형"}[pick[0]]
+    sub = lk[lk.경로 == key].copy()
+    if "일치" in sub and sub.일치.notna().any():
+        sub["사유 일치"] = sub.일치.map({1: "일치", 0: "불일치"}).fillna("—")
+    else:
+        sub["사유 일치"] = "—"
+    show = sub[["기업명", "군", "선행연도", "선행기재", "후행연도", "후행기재",
+                "간격", "사유 일치", "사유일치"]].rename(columns={"사유일치": "일치한 사유"})
+    st.dataframe(show.sort_values(["기업명", "후행연도"]), use_container_width=True,
+                 hide_index=True, height=330)
 
     st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
-    st.markdown("#### 핵심감사사항 유형과 이후 후속 감사결과")
+    st.markdown("#### 계속기업 불확실성 단락 원문")
+    st.markdown(f'<div class="body">기재된 <b>{n_gc}건 전수</b>임. 항목을 고르면 감사보고서의 '
+                f'[계속기업 관련 중요한 불확실성] 단락 원문이 출력됨.</div>', unsafe_allow_html=True)
+    gtxt = load_gc_text(data_signature())
+    g2 = gcrec.merge(gtxt, on=["corp_code", "fy"], how="left")
+    labels = [f"{r.기업명} · FY{r.fy} · {r.opinion}" for r in g2.itertuples()]
+    sel = st.selectbox("건 선택", labels)
+    row = g2.iloc[labels.index(sel)]
+    st.markdown(f'<span class="chip">{row.군}</span><span class="chip">감사의견 {row.opinion}</span>',
+                unsafe_allow_html=True)
+    st.markdown(f'<div class="src">{str(row.gc_text)[:2600]}</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
+    st.markdown("#### 부수 확인 — 핵심감사사항 유형별 이후 위험도")
     t = kam.groupby(["corp_code", "fy"]).kam_type.apply(set).rename("types").reset_index()
     d = pan.merge(t, on=["corp_code", "fy"], how="inner")
     d = d[d.sig_2y.notna()]
@@ -424,11 +447,10 @@ elif sec.startswith("02"):
     chart(fig, h=max(340, 30 * len(r) + 90))
     st.markdown('<div class="panel"><span class="h">수익인식은 오히려 안전 신호</span>'
                 '수익인식이 핵심감사사항인 firm-year의 후속 발생률은 <b>1.9%</b>로, 미보유군(9.5%)보다 '
-                '뚜렷하게 낮음(p=0.003). 기업 단위로 다시 재도 5.1% vs 28.6%(p=0.004)로 유지됨. 정상 영업 중인 기업만 수익인식이 '
-                '핵심위험이 되고, 존속이 흔들리는 기업은 쟁점이 계속기업·자산손상으로 옮겨가기 때문임. '
-                '<b>핵심감사사항 유형은 위험의 예측이라기보다 기업의 현재 상태를 반영함.</b><br><br>'
-                '특수관계자거래는 방향이 반대(23.1% vs 5.6%, p=0.040)이나 해당 기업이 6개사뿐이라 '
-                '기업 단위 검정에서는 유의하지 않음(p=0.151) — 확정할 수 없는 신호로 둠.</div>',
+                '뚜렷하게 낮음(p=0.003). 기업 단위로 다시 재도 5.1% vs 28.6%(p=0.004)로 유지됨. '
+                '정상 영업 중인 기업만 수익인식이 핵심위험이 되고, 존속이 흔들리면 쟁점이 '
+                '계속기업·자산손상으로 옮겨가기 때문임. '
+                '<b>핵심감사사항 유형은 위험의 예측이라기보다 기업의 현재 상태를 반영함.</b></div>',
                 unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────── 03
