@@ -230,7 +230,9 @@ if sec.startswith("01"):
 
     c1, c2, c3 = st.columns([1, 1, 2])
     grp = c1.multiselect("부문", [G1, G2], default=[G1, G2])
-    yrs = c2.slider("사업연도", 2019, 2024, (2019, 2024))
+    # 연도 범위를 하드코딩하면 데이터가 늘어도 화면이 옛 범위에 갇힌다(FY2025 추가 때 실제로 겪음).
+    FY0, FY1 = int(kam.fy.min()), int(kam.fy.max())
+    yrs = c2.slider("사업연도", FY0, FY1, (FY0, FY1))
     tsel = c3.multiselect("유형", sorted(kam.kam_type.unique()), default=[])
     v = kam[kam["군"].isin(grp) & kam.fy.between(*yrs)]
     if tsel:
