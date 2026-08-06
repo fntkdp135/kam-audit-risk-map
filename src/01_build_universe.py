@@ -3,7 +3,7 @@
 
 - 주 대상: 2번 프로젝트의 엔터·미디어·콘텐츠 78개사 (universe_final.csv)
 - 대조군: 게임 상장사 (업종코드 582x 접두)
-- FY2019~2024 사업보고서 접수번호를 수집하되, 같은 사업연도에 여러 건이 있으면
+- FY2019~2025 사업보고서 접수번호를 수집하되, 같은 사업연도에 여러 건이 있으면
   정정본 → 원본 순으로 후보를 모두 보관 (2번 프로젝트에서 확립한 폴백 패턴)
 """
 import os, re, sys, csv, time, json
@@ -20,7 +20,7 @@ OUT = os.path.join(ROOT, "data", "processed")
 KEY = [l.split("=", 1)[1].strip() for l in open(os.path.join(ROOT, ".env"), encoding="utf-8")
        if l.startswith("DART_API_KEY")][0]
 
-FY_MIN, FY_MAX = 2019, 2024
+FY_MIN, FY_MAX = 2019, 2025
 
 
 def load_universe() -> pd.DataFrame:
@@ -61,7 +61,7 @@ def fetch_reports(corp_code: str) -> list:
             j = requests.get(
                 "https://opendart.fss.or.kr/api/list.json",
                 params=dict(crtfc_key=KEY, corp_code=corp_code,
-                            bgn_de="20200101", end_de="20250731",
+                            bgn_de="20200101", end_de="20260831",
                             pblntf_ty="A", pblntf_detail_ty="A001",
                             page_no=page, page_count=100),
                 timeout=30,

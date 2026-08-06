@@ -6,7 +6,7 @@
   (c) GC 재기재 중 하나라도 발생하면 '부실 신호 발생'.
 → 실제 부도·상장폐지의 프록시이며, M&A로 인한 제출 중단도 섞일 수 있음(한계로 명시).
 
-관측 창이 FY2024에서 끝나므로 t+1은 FY2023까지, t+2는 FY2022까지만 평가한다.
+관측 창이 FY2025에서 끝나므로 t+1은 FY2024까지, t+2는 FY2023까지만 평가한다.
 """
 import os, sys
 import pandas as pd
@@ -15,7 +15,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "data", "processed")
 RES = os.path.join(ROOT, "data", "results")
-FY_MIN, FY_MAX = 2019, 2024
+FY_MIN, FY_MAX = 2019, 2025
 ADVERSE = {"의견거절", "한정의견", "부적정의견"}
 
 

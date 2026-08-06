@@ -7,7 +7,7 @@
   (억지로 채우면 뒤의 사람 검증(κ)이 무의미해짐)
 - 최종 정확도는 규칙·LLM을 합친 결과에 대해 사람이 무작위 표본을 blind 분류해 잰다(06).
 """
-import os, sys
+import os, re, sys
 import pandas as pd
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -41,12 +41,24 @@ LLM_MAP = {
     "음반 및 음원 매출": "수익인식",
     "주)사일로랩 인수에 따른 거래가격배분": "사업결합",
     "주요 현장에 대하여 공사변경에 따른 추가계약원가 추정액이 총계약원가 산정에 반영되었는지 확인": "수익인식",
+    # --- FY2025 반영 후 재추출에서 항목명이 달라져 새로 판정한 건 ---
+    "이연게임매출의 정확성": "수익인식",
+    "중단영업": "사업결합",
+    "전환금융상품 평가 및 회계처리의 적정성 (주석19, 21 참조": "금융상품 공정가치·평가",
+    # 오타('현금창충단위')로 규칙에 걸리지 않은 건 — 내용은 현금창출단위 사용가치 평가
+    "동 현금창충단위의 사용가치 평가에 포함된 미래현금흐름 추정에는 재무예산의 예측": "영업권 손상",
 }
 
 # 항목명이 잘려 의미 판별 불가 → 배정하지 않음(정직하게 미분류로 남김)
 UNRESOLVABLE = {".", "주석9, 18 참조", "주석19, 21 참조", "위험",
                 "801,778백만원, 1,218,906백만원 및 576,100백만원",
                 "주)케이티에이치씨엔(구, (주)에이치씨엔", "케이티에이치씨엔(구, (주)에이치씨엔"}
+
+# 선급비용 관련 항목명은 회사·연도별로 금액 표기가 달라 키가 매번 바뀐다.
+# 정확 일치 대신 패턴으로 잡는다(웹툰·웹소설 제작 선급비용 = 콘텐츠 제작비 자산).
+PATTERN_MAP = [
+    (r"당기말\s*계상된\s*선급비용", "콘텐츠·제작비 자산"),
+]
 
 
 def main():
@@ -60,6 +72,14 @@ def main():
     hit = m & key.isin(LLM_MAP)
     k.loc[hit, "kam_type"] = key[hit].map(LLM_MAP)
     k.loc[hit, "type_source"] = "llm"
+
+    # 정확 일치로 안 잡히는 잔여 건을 패턴으로 한 번 더
+    still = k["kam_type"] == "미분류"
+    for pat, cat in PATTERN_MAP:
+        sel = still & key.str.contains(pat, regex=True, na=False)
+        k.loc[sel, "kam_type"] = cat
+        k.loc[sel, "type_source"] = "llm"
+        still = k["kam_type"] == "미분류"
 
     k.to_csv(os.path.join(OUT, "kam_typed.csv"), index=False, encoding="utf-8-sig")
 
