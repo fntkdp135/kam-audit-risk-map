@@ -30,11 +30,24 @@ b, strong {{ color:{MINT}; font-weight:600; }}
           margin:0 0 2rem 0; }}
 .fig {{ flex:1; padding:1.1rem 1.3rem; border-right:1px solid {LINE}; }}
 .fig:last-child {{ border-right:none; }}
-.fig .n {{ font-size:2.0rem; font-weight:680; letter-spacing:-.04em; color:{MINT};
-          line-height:1.15; font-variant-numeric:tabular-nums; }}
+.fig .lbl {{ color:#C3CAD8; font-size:.78rem; font-weight:600; margin-bottom:.42rem;
+            letter-spacing:.01em; }}
+.fig .n {{ font-size:1.62rem; font-weight:700; letter-spacing:-.035em; color:{MINT};
+          line-height:1.3; font-variant-numeric:tabular-nums; }}
+.fig .n.sm {{ font-size:1.18rem; line-height:1.45; }}
+.fig .pct {{ color:#C3CAD8; font-weight:600; font-size:.92rem; margin-left:.3rem; }}
 .fig.neg .n {{ color:{CORAL}; }}
 .fig.amb .n {{ color:{AMBER}; }}
-.fig .k {{ color:{MUTE}; font-size:.76rem; margin-top:.35rem; line-height:1.5; }}
+.fig .k {{ color:#A7AFBE; font-size:.76rem; margin-top:.35rem; line-height:1.55; }}
+
+/* 다크 배경에서 회색 기본색이 거의 안 보이므로 위젯·내비 글자를 흰색 볼드로 올림 */
+section[data-testid="stSidebar"] [role="radiogroup"] label p {{
+  color:#FFFFFF !important; font-weight:700 !important; font-size:.92rem !important; }}
+section[data-testid="stSidebar"] [role="radiogroup"] label {{ padding:.15rem 0; }}
+div[data-testid="stWidgetLabel"] p, .stMultiSelect label p, .stSlider label p,
+.stSelectbox label p {{ color:#FFFFFF !important; font-weight:700 !important; }}
+div[data-testid="stSliderTickBarMin"], div[data-testid="stSliderTickBarMax"] {{
+  color:#A7AFBE !important; }}
 
 .body {{ color:#B8BFCC; font-size:.93rem; line-height:1.85; }}
 .panel {{ background:{SURF}; border:1px solid {LINE}; border-radius:4px;
@@ -87,9 +100,13 @@ def disp(t):
 
 
 def figs(items):
+    """(라벨, 값, 보조설명, 클래스) — 라벨·값·보조설명이 한눈에 보이도록."""
     html = '<div class="figrow">'
-    for n, k_, cls in items:
-        html += f'<div class="fig {cls}"><div class="n">{n}</div><div class="k">{k_}</div></div>'
+    for lbl, val, sub, cls in items:
+        small = " sm" if len(re.sub(r"<[^>]+>", "", str(val))) > 9 else ""
+        html += (f'<div class="fig {cls}"><div class="lbl">{lbl}</div>'
+                 f'<div class="n{small}">{val}</div>'
+                 + (f'<div class="k">{sub}</div>' if sub else "") + "</div>")
     st.markdown(html + "</div>", unsafe_allow_html=True)
 
 
@@ -100,25 +117,37 @@ def head(eyebrow, title, lead, warn=False):
 
 
 def chart(fig, h=380):
+    """제목과 범례가 겹치지 않도록 범례를 차트 아래로 내리고, 글자색을 밝게 유지."""
     fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)",
-                      plot_bgcolor="rgba(0,0,0,0)", height=h,
-                      font=dict(color="#B8BFCC", size=12),
-                      title_font=dict(color=TXT, size=13),
-                      margin=dict(l=6, r=6, t=46, b=6),
-                      legend=dict(orientation="h", y=1.13, x=0),
-                      xaxis=dict(gridcolor="#1D222C", zerolinecolor="#1D222C"),
-                      yaxis=dict(gridcolor="#1D222C", zerolinecolor="#1D222C"))
+                      plot_bgcolor="rgba(0,0,0,0)", height=h + 46,
+                      font=dict(color="#E2E6EE", size=12),
+                      title=dict(font=dict(color=TXT, size=14), x=0, xanchor="left",
+                                 y=0.98, yanchor="top"),
+                      margin=dict(l=6, r=6, t=50, b=58),
+                      legend=dict(orientation="h", yanchor="top", y=-0.10, x=0,
+                                  font=dict(color="#E2E6EE", size=12),
+                                  bgcolor="rgba(0,0,0,0)"),
+                      xaxis=dict(gridcolor="#1D222C", zerolinecolor="#1D222C",
+                                 tickfont=dict(color="#C7CEDA")),
+                      yaxis=dict(gridcolor="#1D222C", zerolinecolor="#1D222C",
+                                 tickfont=dict(color="#E2E6EE")))
     st.plotly_chart(fig, use_container_width=True)
+
+
+def b(s):
+    """플로틀리 축·범례 라벨을 볼드로."""
+    return f"<b>{s}</b>"
 
 
 # ─────────────────────────────────────────────── 사이드바
 with st.sidebar:
     st.markdown(f'<div class="eyebrow">Samil Audit Portfolio</div>'
-                f'<div style="font-size:1.15rem;font-weight:660;letter-spacing:-.03em;'
-                f'margin-bottom:1.3rem">감사위험 지도</div>', unsafe_allow_html=True)
+                f'<div style="font-size:1.22rem;font-weight:800;letter-spacing:-.03em;'
+                f'color:#FFFFFF;margin-bottom:1.3rem">감사위험 지도</div>',
+                unsafe_allow_html=True)
     sec = st.radio("섹션", [
         "01  감사인이 지목한 위험",
-        "02  세 축은 이어지는가",
+        "02  세 축은 이어지는가 (KAM·GC·의견변형)",
         "03  의견변형은 왜 나오는가",
         "04  만드는 과정",
     ], label_visibility="collapsed")
@@ -137,15 +166,19 @@ with st.sidebar:
 if sec.startswith("01"):
     top = kam.kam_type.value_counts()
     head("Section 01 · 무엇을 위험으로 보았나",
-         "감사인이 공개적으로 지목한 위험은<br>두 부문 모두 같은 곳에 몰려 있었다",
+         "콘텐츠 산업 기업의 핵심감사사항",
          f"콘텐츠 산업을 <b>E&amp;M 부문</b>(음악·방송·영화·드라마·웹툰, 78개사)과 "
          f"<b>Game 부문</b>(31개사, 대조군)으로 나눠 핵심감사사항 {len(kam)}개를 13개 유형으로 분류함. "
          f"부문별 분포 차이는 통계적으로는 유의하나(p=0.014), 실제로 갈리는 것은 "
          f"<b>종속·관계기업투자 평가</b> 한 유형뿐이고 나머지 구조는 거의 같음.")
-    figs([(f"{top.iloc[0]/len(kam)*100:.0f}%", f"최다 유형 · {top.index[0]}", ""),
-          (f"{(top.iloc[0]+top.iloc[1])/len(kam)*100:.0f}%", "상위 2유형이 차지하는 비중", ""),
-          ("13", "분류 유형 수", ""),
-          ("0.220", "부문 간 차이의 크기 (Cramer's V)", "amb")])
+    p1 = top.iloc[0] / len(kam) * 100
+    p2 = (top.iloc[0] + top.iloc[1]) / len(kam) * 100
+    figs([("최다 유형", f"{top.index[0]}<span class='pct'>{p1:.0f}%</span>",
+           f"{int(top.iloc[0])}건 / 전체 {len(kam)}건", ""),
+          ("상위 2유형", f"{top.index[0]} · {top.index[1]}"
+                      f"<span class='pct'>{p2:.0f}%</span>",
+           f"{int(top.iloc[0]+top.iloc[1])}건 / 전체 {len(kam)}건", ""),
+          ("분류 유형 수", "13", "감사인이 지목한 회계쟁점 기준", "")])
 
     c1, c2, c3 = st.columns([1, 1, 2])
     grp = c1.multiselect("부문", [G1, G2], default=[G1, G2])
@@ -165,8 +198,9 @@ if sec.startswith("01"):
             fig = go.Figure()
             for g, col in [(G1, MINT), (G2, AMBER)]:
                 if g in ct.columns:
-                    fig.add_bar(y=ct.index[::-1], x=ct[g][::-1], name=g, orientation="h",
-                                marker_color=col, hovertemplate="%{y} %{x}%<extra></extra>")
+                    fig.add_bar(y=[b(x) for x in ct.index[::-1]], x=ct[g][::-1], name=b(g),
+                                orientation="h", marker_color=col,
+                                hovertemplate="%{y} %{x}%<extra></extra>")
             fig.update_layout(title="부문별 유형 구성비 (%)", barmode="group")
             chart(fig, h=max(360, 27 * len(ct) + 90))
         with R:
@@ -174,7 +208,7 @@ if sec.startswith("01"):
             keep = [c for c in v.kam_type.value_counts().head(5).index if c in tr.columns]
             fig = go.Figure()
             for i, c in enumerate(keep):
-                fig.add_scatter(x=tr.index, y=tr[c], name=c, mode="lines+markers",
+                fig.add_scatter(x=tr.index, y=tr[c], name=b(c), mode="lines+markers",
                                 line=dict(color=[MINT, AMBER, "#7C9CE0", CORAL, "#9B8ACB"][i],
                                           width=2.2))
             fig.update_layout(title="연도별 추이 (상위 5유형, 건수)",
@@ -231,12 +265,13 @@ elif sec.startswith("02"):
          "<b>의견변형</b>은 감사 수행 자체가 막힌 결과임. "
          "따라서 이 절은 인과가 아니라 <b>세 기재가 실제로 어떻게 겹치는지</b>를 본 것임.", warn=True)
     n_gc_all = int(pan.has_gc.sum())
-    figs([(f"{int(vc.get('의견변형',0))}",
-           f"이후 의견변형 — 후속 관측이 가능한 {n_gc}건 기준<br>"
-           f"(전체 기재 {n_gc_all}건 중 {n_gc_all-n_gc}건은 FY2024라 관측 불가)", "neg"),
-          (f"{int(vc.get('계속기업 불확실성 재기재',0))}", "계속기업 불확실성만 재기재 (의견은 적정)", "amb"),
-          (f"{int(vc.get('보고서 제출 중단',0))}", "사업보고서 제출 중단", "amb"),
-          (f"{int(vc.get('변화 없음',0))}", "이후 특이사항 없음", "")])
+    figs([("이후 의견변형", f"{int(vc.get('의견변형',0))}건",
+           f"후속 관측이 가능한 {n_gc}건 기준 "
+           f"(전체 {n_gc_all}건 중 {n_gc_all-n_gc}건은 FY2024라 관측 불가)", "neg"),
+          ("계속기업 재기재", f"{int(vc.get('계속기업 불확실성 재기재',0))}건",
+           "감사의견은 적정일 수 있음", "amb"),
+          ("보고서 제출 중단", f"{int(vc.get('보고서 제출 중단',0))}건", "상장폐지 근사", "amb"),
+          ("이후 특이사항 없음", f"{int(vc.get('변화 없음',0))}건", "", "")])
 
     st.markdown(f'<div class="panel"><span class="h">"부실"이라는 한 덩어리로 묶지 않은 이유</span>'
                 f'계속기업 불확실성이 이듬해 다시 기재되는 것은 의견변형과 성격이 전혀 다름 '
@@ -250,7 +285,7 @@ elif sec.startswith("02"):
     with L:
         order = ["의견변형", "계속기업 불확실성 재기재", "보고서 제출 중단", "변화 없음"]
         vals = [int(vc.get(o, 0)) for o in order]
-        fig = go.Figure(go.Bar(y=order[::-1], x=vals[::-1], orientation="h",
+        fig = go.Figure(go.Bar(y=[b(x) for x in order[::-1]], x=vals[::-1], orientation="h",
                                marker_color=[MUTE, AMBER, AMBER, CORAL][::-1],
                                hovertemplate="%{y} %{x}건<extra></extra>"))
         fig.update_layout(title=f"계속기업 불확실성 기재 {n_gc}건의 2년 내 후속 감사결과")
@@ -279,9 +314,10 @@ elif sec.startswith("02"):
                          미보유군=round((d[~has].sig_2y == 1).mean() * 100, 1)))
     r = pd.DataFrame(rows).sort_values("보유군", ascending=False)
     fig = go.Figure()
-    fig.add_bar(y=r.유형[::-1], x=r.보유군[::-1], name="해당 유형 보유", orientation="h",
+    yl = [b(x) for x in r.유형[::-1]]
+    fig.add_bar(y=yl, x=r.보유군[::-1], name=b("해당 유형 보유"), orientation="h",
                 marker_color=CORAL)
-    fig.add_bar(y=r.유형[::-1], x=r.미보유군[::-1], name="미보유", orientation="h", marker_color=MUTE)
+    fig.add_bar(y=yl, x=r.미보유군[::-1], name=b("미보유"), orientation="h", marker_color=MUTE)
     fig.update_layout(title="유형별 2년 내 후속 감사결과 발생률 (%)", barmode="group")
     chart(fig, h=max(340, 30 * len(r) + 90))
     st.markdown('<div class="panel"><span class="h">수익인식은 오히려 안전 신호</span>'
@@ -305,19 +341,21 @@ elif sec.startswith("03"):
          f"<b>부적정의견은 0건</b> — 왜곡표시를 단정한 사례가 없었다는 뜻임. "
          f"근거 단락을 전수 추출해 사유를 유형화한 결과, 절반 이상이 "
          f"<b>전기 의견변형이 기초잔액 검증을 막아 이월된 것</b>이었음.", warn=True)
-    figs([(f"{n}", f"의견변형 (의견거절 {int((bas.의견=='의견거절').sum())} · "
-                   f"한정 {int((bas.의견=='한정의견').sum())})", "neg"),
-          (f"{n_firm}", "해당 기업 수 — 소수에 집중됨", "amb"),
-          ("0", "부적정의견", ""),
-          (f"{carry/n*100:.0f}%", "직전 사업연도에도 의견변형이었던 비율", "neg")])
+    figs([("의견변형", f"{n}건",
+           f"의견거절 {int((bas.의견=='의견거절').sum())} · "
+           f"한정 {int((bas.의견=='한정의견').sum())}", "neg"),
+          ("해당 기업 수", f"{n_firm}개사", f"평균 {n/n_firm:.1f}년씩 연속됨", "amb"),
+          ("부적정의견", "0건", "왜곡표시를 단정한 사례 없음", ""),
+          ("직전 연도에도 의견변형", f"{carry/n*100:.0f}%", f"{carry}/{n}건", "neg")])
 
     cnt = {}
     for s in bas.사유.fillna(""):
         for x in [y for y in s.split("|") if y]:
             cnt[x] = cnt.get(x, 0) + 1
     freq = pd.Series(cnt).sort_values()
-    fig = go.Figure(go.Bar(y=freq.index, x=(freq / n * 100).round(1), orientation="h",
-                           marker_color=CORAL, hovertemplate="%{y} %{x}%<extra></extra>"))
+    fig = go.Figure(go.Bar(y=[b(x) for x in freq.index], x=(freq / n * 100).round(1),
+                           orientation="h", marker_color=CORAL,
+                           hovertemplate="%{y} %{x}%<extra></extra>"))
     fig.update_layout(title=f"의견변형 근거 단락의 사유 유형 (n={n}, 다중 집계, %)")
     chart(fig, h=max(360, 32 * len(freq) + 80))
 
@@ -364,10 +402,10 @@ else:
          "감사보고서 전문은 공시유형 검색으로 받을 수 없음(거래소 「감사보고서제출」 공시는 "
          "표지 3천여 자뿐). <b>사업보고서 원문 ZIP에 첨부된 별도·연결 감사보고서</b>를 통해서만 "
          "확보됨. 여기서 핵심감사사항·계속기업 불확실성·감사의견·의견근거를 추출함.")
-    figs([("98.3%", "감사보고서 확보율 (532/541)", ""),
-          ("94.4%", "규칙기반 분류 처리율", ""),
-          ("3.9%", "LLM 보조 분류 — 규칙이 놓친 잔여분", "amb"),
-          ("0.935", "사람 표본검증 일치도 (Cohen's κ)", "")])
+    figs([("감사보고서 확보율", "98.3%", "532 / 541 firm-year", ""),
+          ("규칙기반 분류", "94.4%", "코드가 처리", ""),
+          ("LLM 보조 분류", "3.9%", "규칙이 놓친 잔여분만", "amb"),
+          ("사람 표본검증", "κ 0.935", "무작위 60건 blind 재분류", "")])
 
     steps = pd.DataFrame([
         ("① 모집단", "E&M 78개사(59x·60x·90x + 웹툰·웹소설) + Game 대조군 31개사(5821)", "541 firm-year"),
