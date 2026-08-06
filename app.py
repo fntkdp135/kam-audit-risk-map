@@ -121,8 +121,15 @@ def disp(t):
     return "(항목명 추출 실패 — 원문 확인)" if (not t or len(t) < 4 or BAD.search(t)) else t
 
 
+def txt_ok(x, n=30):
+    """결측·공백·너무 짧은 조각을 걸러 화면에 'nan'이 찍히지 않도록 한다."""
+    return isinstance(x, str) and len(x.strip()) >= n
+
+
 # 한계 서술에 쓰는 값도 화면과 같은 판정으로 계산한다(하드코딩하면 데이터가 바뀔 때 어긋남)
 n_bad = int(kam.kam_title.apply(lambda t: disp(t).startswith("(항목명")).sum())
+n_noreason = int((~kam.reason_text.apply(txt_ok)).sum())
+n_noproc = int((~kam.procedure_text.apply(txt_ok)).sum())
 
 
 def figs(items):
@@ -268,9 +275,9 @@ if sec.startswith("01"):
 
         st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
         st.markdown("#### 감사보고서 원문")
-        st.markdown('<div class="body">항목을 펼치면 감사인이 쓴 <b>선정 이유</b>와 '
-                    '<b>실제 수행한 감사절차</b>가 나옴. 수치만이 아니라 그 산업에서 위험이 '
-                    '어떤 언어로 서술되는지 확인하는 용도임.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="body">항목을 펼치면 감사보고서 내 '
+                    '<b>[핵심감사사항] 단락의 원문 내용이 출력</b>됨.</div>',
+                    unsafe_allow_html=True)
         f = st.selectbox("기업", ["(전체)"] + sorted(v.기업명.unique()))
         vv = (v if f == "(전체)" else v[v.기업명 == f]).sort_values(["fy", "기업명"],
                                                               ascending=[False, True])
@@ -281,11 +288,23 @@ if sec.startswith("01"):
                             f'<span class="chip">{r.doc_type}감사보고서</span>'
                             f'<span class="chip">분류 {"규칙" if r.type_source=="rule" else "LLM 보조"}</span>',
                             unsafe_allow_html=True)
-                st.markdown("**핵심감사사항으로 결정한 이유**")
-                st.markdown(f'<div class="src">{str(r.reason_text)[:2400]}</div>', unsafe_allow_html=True)
-                if isinstance(r.procedure_text, str) and len(r.procedure_text) > 30:
+                # 결측(NaN)을 그대로 찍으면 화면에 'nan'이 노출되므로 있는 구간만 출력함.
+                # 보고서에 따라 '이유'와 '방법'이 소제목으로 나뉘지 않아 한쪽만 잡히는 경우가 있음.
+                shown = False
+                if txt_ok(r.reason_text):
+                    st.markdown("**핵심감사사항으로 결정한 이유**")
+                    st.markdown(f'<div class="src">{str(r.reason_text)[:2400]}</div>',
+                                unsafe_allow_html=True)
+                    shown = True
+                if txt_ok(r.procedure_text):
                     st.markdown("**감사에서 다루어진 방법**")
-                    st.markdown(f'<div class="src">{r.procedure_text[:2400]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="src">{str(r.procedure_text)[:2400]}</div>',
+                                unsafe_allow_html=True)
+                    shown = True
+                if not shown:
+                    st.markdown('<div class="src">원문 구간을 분리하지 못한 항목임 '
+                                '(감사보고서가 이유·방법을 소제목으로 나누지 않은 형식).</div>',
+                                unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────── 02
 elif sec.startswith("02"):
@@ -498,6 +517,11 @@ else:
                 f'존속분 κ=0.911)<br>'
                 f'· <b>항목명 추출 실패 {n_bad}건</b>({n_bad/len(kam)*100:.1f}%)이 남아 있어 '
                 f'화면에서는 대체 문구로 표시함<br>'
+                f'· <b>원문 구간이 한쪽만 잡힌 항목이 있음.</b> 감사보고서가 이유·방법을 소제목으로 '
+                f'나누지 않는 형식이면 한 구간만 분리됨 — 선정 이유 미확보 {n_noreason}건'
+                f'({n_noreason/len(kam)*100:.1f}%), 감사절차 미확보 {n_noproc}건'
+                f'({n_noproc/len(kam)*100:.1f}%). 유형 분류는 항목명과 확보된 구간으로 이뤄지므로 '
+                f'분류 자체에는 영향이 적으나, 원문 열람에서는 해당 구간이 표시되지 않음<br>'
                 f'· <b>FY2019는 다른 연도와 비교 불가</b> — 핵심감사사항 단계 도입기<br>'
                 f'· <b>감사인별 성과 비교는 수행하지 않음.</b> 감사인마다 클라이언트 구성이 달라 '
                 f'통제 없는 비교는 감사 품질이 아니라 클라이언트 구성을 재게 됨</div>',
