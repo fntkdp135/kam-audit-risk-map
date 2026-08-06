@@ -69,8 +69,30 @@ G1, G2 = "E&M", "Game"
 MODIFIED = ["의견거절", "한정의견", "부적정의견"]
 
 
+DATA_FILES = ["data/processed/kam_typed.csv", "data/processed/panel_outcomes.csv",
+              "data/results/opinion_basis_typed.csv"]
+
+
+def data_signature():
+    """데이터 파일의 크기·수정시각을 캐시 키에 넣는다.
+
+    이걸 넣지 않으면 CSV만 바뀌고 load() 본문이 그대로일 때 @st.cache_data가
+    **옛 데이터를 계속 반환한다**. 로컬에서는 서버를 재시작하면 풀리지만, 배포본은
+    재시작되지 않아 코드는 최신인데 수치만 옛것으로 남는 상태가 된다(실제로 겪음).
+    """
+    sig = []
+    for rel in DATA_FILES:
+        p = os.path.join(BASE, rel)
+        try:
+            st_ = os.stat(p)
+            sig.append((rel, int(st_.st_size), int(st_.st_mtime)))
+        except OSError:
+            sig.append((rel, -1, -1))
+    return tuple(sig)
+
+
 @st.cache_data
-def load():
+def load(_sig):
     k = pd.read_csv(f"{BASE}/data/processed/kam_typed.csv", dtype={"corp_code": str},
                     encoding="utf-8-sig")
     k["corp_code"] = k.corp_code.str.zfill(8)
@@ -88,7 +110,7 @@ def load():
     return k, p, b
 
 
-kam, pan, bas = load()
+kam, pan, bas = load(data_signature())
 
 BAD = re.compile(r"^[\d,\.\s]+$|백만원|^\D{0,3}\d[\d,\.]*\s*(원|건)?$"
                  r"|(하였고|이며|하므로|고려하여|점을|바|이)$|참조\)")
