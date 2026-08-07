@@ -357,12 +357,12 @@ elif sec.startswith("02"):
                 f'핵심감사사항은 경고로서 실제 의미가 있었던 것임.</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="panel"><span class="h">읽어낸 것</span>'
                 f'{n_link}건의 사례 역시 절반에 못 미치고({n_link}/{n_mod}건, '
-                f'{n_link/n_mod*100:.0f}%), 그중 <b>사유까지 일치한 것은 {n_match}건</b>뿐임. '
+                f'{n_link/n_mod*100:.0f}%), 그중 사유까지 일치한 것은 {n_match}건뿐임. '
                 f'또한, <b style="color:{CORAL}">{firms_match}개사(레드로버·아이에이치큐)에 몰려 '
                 f'있어 일반화할 수 없음</b>.<br><br>'
                 f'실무적으로, 핵심감사사항은 수위가 조절될 수 있으며, 일반적으로 수익인식과 '
-                f'회계추정치로 제시됨을 고려하면, <b>핵심감사사항을 의견변형의 경보라고 볼 여지는 '
-                f'희박하다</b>고 볼 수 있음.</div>', unsafe_allow_html=True)
+                f'회계추정치로 제시됨을 고려하면, <b style="color:{CORAL}">핵심감사사항을 '
+                f'의견변형의 경보라고 볼 여지는 희박하다</b>고 볼 수 있음.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
     st.markdown("#### 실제로 이어진 사례")
@@ -392,12 +392,13 @@ elif sec.startswith("03"):
     n_firm = bas.기업명.nunique()
     key = set(zip(bas.corp_code, bas.fy))
     carry = sum(1 for c, f in key if (c, f - 1) in key)
+    n_carryover = int(bas.사유.str.contains("기초잔액").sum())  # "읽어낸 것" 패널과 같은 계산 재사용
     head("Section 03 · 의견변형은 왜 나오는가",
-         "‘재무제표가 틀렸다’가 아니라<br>‘확인할 수 없었다’는 판정이었다",
-         f"FY2019~2025 동안 의견변형은 <b>{n}건</b>이었고 전부 감사범위 제한에서 왔음. "
-         f"<b>부적정의견은 0건</b> — 왜곡표시를 단정한 사례가 없었다는 뜻임. "
-         f"근거 단락을 전수 추출해 사유를 유형화한 결과, 절반 이상이 "
-         f"<b>전기 의견변형이 기초잔액 검증을 막아 이월된 것</b>이었음.", warn=True)
+         "콘텐츠 산업 기업의 의견변형 사유",
+         f"FY2019~2025 동안 의견변형은 <b>{n}건</b>, 사유는 모두 감사범위 제한(부적정의견은 "
+         f"0건).<br><br>의견변형 근거 단락을 전수 추출해 사유를 유형화한 결과, 절반에 가까운 "
+         f"<b>{n_carryover}건({n_carryover/n*100:.0f}%)</b>이 전기 의견변형이 기초잔액 검증을 "
+         f"막아 의견변형이 이월된 것이었음.", warn=True)
     figs([("의견변형", f"{n}건",
            f"의견거절 {int((bas.의견=='의견거절').sum())} · "
            f"한정 {int((bas.의견=='한정의견').sum())}", "neg"),
@@ -417,7 +418,7 @@ elif sec.startswith("03"):
     chart(fig, h=max(360, 32 * len(freq) + 80))
 
     st.markdown(f'<div class="panel"><span class="h">의견변형은 스스로를 재생산한다</span>'
-                f'근거 단락 {int(bas.사유.str.contains("기초잔액").sum())}건에 '
+                f'근거 단락 {n_carryover}건에 '
                 f'"전기 재무제표를 타감사인이 감사했고 의견을 표명하지 않았으므로 기초잔액에 대한 '
                 f'충분하고 적합한 증거를 확보하지 못했다"는 취지가 명시돼 있음. '
                 f'전기에 한 번 의견변형이 나면 당기 감사인은 기초잔액을 검증할 방법이 없어 '
