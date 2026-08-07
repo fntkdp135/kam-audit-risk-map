@@ -44,6 +44,9 @@ b, strong {{ color:{MINT}; font-weight:600; }}
 section[data-testid="stSidebar"] [role="radiogroup"] label p {{
   color:#FFFFFF !important; font-weight:700 !important; font-size:.92rem !important; }}
 section[data-testid="stSidebar"] [role="radiogroup"] label {{ padding:.15rem 0; }}
+/* 04(방법론·한계점)는 본문 섹션과 성격이 달라 회색으로 눈에 덜 띄게 둠 */
+section[data-testid="stSidebar"] [role="radiogroup"] label:last-of-type p {{
+  color:{MUTE} !important; font-weight:600 !important; }}
 div[data-testid="stWidgetLabel"] p, .stMultiSelect label p, .stSlider label p,
 .stSelectbox label p {{ color:#FFFFFF !important; font-weight:700 !important; }}
 div[data-testid="stSliderTickBarMin"], div[data-testid="stSliderTickBarMax"] {{
@@ -199,10 +202,10 @@ with st.sidebar:
                 f'color:#FFFFFF;margin-bottom:1.3rem">감사위험 지도</div>',
                 unsafe_allow_html=True)
     sec = st.radio("섹션", [
-        "01  감사인이 지목한 위험",
-        "02  그 위험은 실제로 핵심이었나 (KAM→의견변형)",
-        "03  의견변형은 왜 나오는가",
-        "04  만드는 과정",
+        "01  콘텐츠산업의 핵심감사사항(KAM)",
+        "02  KAM은 실제로 핵심적인 위험이었는가 (KAM→의견변형)",
+        "03  의견변형 사유",
+        "04  방법론, 한계점",
     ], label_visibility="collapsed")
     st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
     n_mod = len(bas)
@@ -354,8 +357,9 @@ elif sec.startswith("02"):
                 f'핵심감사사항은 경고로서 실제 의미가 있었던 것임.</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="panel"><span class="h">읽어낸 것</span>'
                 f'{n_link}건의 사례 역시 절반에 못 미치고({n_link}/{n_mod}건, '
-                f'{n_link/n_mod*100:.0f}%), 그중 사유까지 일치한 것은 {n_match}건뿐임. 일치한 '
-                f'사례도 {firms_match}개사(레드로버·아이에이치큐)에 몰려 있어 일반화할 수 없음. '
+                f'{n_link/n_mod*100:.0f}%), 그중 <b>사유까지 일치한 것은 {n_match}건</b>뿐임. '
+                f'또한, <b style="color:{CORAL}">{firms_match}개사(레드로버·아이에이치큐)에 몰려 '
+                f'있어 일반화할 수 없음</b>.<br><br>'
                 f'실무적으로, 핵심감사사항은 수위가 조절될 수 있으며, 일반적으로 수익인식과 '
                 f'회계추정치로 제시됨을 고려하면, <b>핵심감사사항을 의견변형의 경보라고 볼 여지는 '
                 f'희박하다</b>고 볼 수 있음.</div>', unsafe_allow_html=True)
