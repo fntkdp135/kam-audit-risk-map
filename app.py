@@ -410,11 +410,12 @@ elif sec.startswith("03"):
     for s in bas.사유.fillna(""):
         for x in [y for y in s.split("|") if y]:
             cnt[x] = cnt.get(x, 0) + 1
+    # 표본이 34건뿐이라 %보다 건수가 왜곡 없이 읽힘
     freq = pd.Series(cnt).sort_values()
-    fig = go.Figure(go.Bar(y=[b(x) for x in freq.index], x=(freq / n * 100).round(1),
+    fig = go.Figure(go.Bar(y=[b(x) for x in freq.index], x=freq,
                            orientation="h", marker_color=CORAL,
-                           hovertemplate="%{y} %{x}%<extra></extra>"))
-    fig.update_layout(title=f"의견변형 근거 단락의 사유 유형 (n={n}, 다중 집계, %)")
+                           hovertemplate="%{y} %{x}건<extra></extra>"))
+    fig.update_layout(title=f"의견변형 근거 단락의 사유 유형 (n={n}, 다중 집계, 건수)")
     chart(fig, h=max(360, 32 * len(freq) + 80))
 
     st.markdown(f'<div class="panel"><span class="h">의견변형은 스스로를 재생산한다</span>'
@@ -445,8 +446,6 @@ elif sec.startswith("03"):
 
     st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
     st.markdown("#### 의견변형 근거 단락 원문")
-    st.markdown('<div class="body">감사인이 <b>무엇을 확인하지 못했는지</b>를 직접 기술한 문단임. '
-                '유형 분류는 이 원문에서 나옴.</div>', unsafe_allow_html=True)
     pick = st.selectbox("건 선택", [f"{r.기업명} · FY{r.fy} · {r.의견}" for r in bas.itertuples()])
     row = bas.iloc[[f"{r.기업명} · FY{r.fy} · {r.의견}" for r in bas.itertuples()].index(pick)]
     st.markdown("".join(f'<span class="chip">{x}</span>'
