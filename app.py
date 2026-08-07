@@ -368,15 +368,18 @@ elif sec.startswith("02"):
     show["후행"] = "FY" + show.후행연도.astype(str) + " · " + show.후행기재
     show = show[["기업명", "군", "선행", "후행", "간격", "사유 일치", "사유일치"]].rename(
         columns={"사유일치": "일치한 사유", "간격": "간격(년)"})
+    # width는 픽셀 정수로 직접 지정함 — "small"/"large" 같은 프리셋은 열 합이 컨테이너 폭을
+    # 넘겨 왼쪽의 기업명이 스크롤 밖으로 밀려났었음(실제로 겪음). "일치한 사유"의 남는 여백을
+    # 줄여 기업명 쪽에 폭을 더 준다.
     st.dataframe(show.sort_values("기업명"), use_container_width=True, hide_index=True,
                 height=330, column_config={
-                    "기업명": st.column_config.TextColumn(width="small"),
-                    "군": st.column_config.TextColumn(width="small"),
-                    "선행": st.column_config.TextColumn(width="medium"),
-                    "후행": st.column_config.TextColumn(width="medium"),
-                    "간격(년)": st.column_config.NumberColumn(width="small"),
-                    "사유 일치": st.column_config.TextColumn(width="small"),
-                    "일치한 사유": st.column_config.TextColumn(width="large"),
+                    "기업명": st.column_config.TextColumn(width=110),
+                    "군": st.column_config.TextColumn(width=54),
+                    "선행": st.column_config.TextColumn(width=210),
+                    "후행": st.column_config.TextColumn(width=150),
+                    "간격(년)": st.column_config.NumberColumn(width=70),
+                    "사유 일치": st.column_config.TextColumn(width=64),
+                    "일치한 사유": st.column_config.TextColumn(width=170),
                 })
 
 # ─────────────────────────────────────────────── 03
