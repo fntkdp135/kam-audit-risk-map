@@ -163,9 +163,10 @@ def figs(items):
 
 
 def head(eyebrow, title, lead, warn=False):
-    st.markdown(f'<div class="eyebrow">{eyebrow}</div>'
-                f'<div class="secttl">{title}</div>'
-                f'<div class="lead {"warn" if warn else ""}">{lead}</div>', unsafe_allow_html=True)
+    html = f'<div class="eyebrow">{eyebrow}</div><div class="secttl">{title}</div>'
+    if lead:  # 리드문 없이 제목만 쓰고 카드로 바로 들어가는 섹션을 위해 생략 가능하게 함
+        html += f'<div class="lead {"warn" if warn else ""}">{lead}</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def chart(fig, h=380):
@@ -337,12 +338,7 @@ elif sec.startswith("02"):
     gap = s.간격.median()
 
     head("Section 02 · 그 위험은 실제로 핵심이었나",
-         "지목된 핵심감사사항이 이후 연도에<br>의견변형으로 이어졌는가",
-         f"<b>같은 해 보고서에서는 확인할 수 없음.</b> 회계감사기준서 1701은 의견변형을 초래하는 "
-         f"사항이 그 특성상 핵심감사사항이더라도 <b>핵심감사사항 단락에 기술해서는 안 된다</b>고 "
-         f"정하고 있음(의견근거 단락에 기술). 따라서 두 기재가 한 보고서에 겹치는 일은 제도상 "
-         f"일어나지 않으며, 검증은 <b>연도를 건너뛰어</b> 해야 함. 그리고 단순히 이어졌는지가 아니라 "
-         f"<b>같은 사유로 이어졌는지</b>를 봐야 감사인이 지목한 위험이 실제로 핵심이었는지 알 수 있음.")
+         "지목된 핵심감사사항이 이후 연도에<br>의견변형으로 이어졌는가", "")
     figs([("KAM → 이후 의견변형", f"{n_link}건",
            f"의견변형 {n_mod}건 중 {n_link/n_mod*100:.0f}% · {firms_link}개사", "amb"),
           ("사유까지 일치", f"{n_match}건",
@@ -351,56 +347,37 @@ elif sec.startswith("02"):
           ("일치 사례 편중", f"{firms_match}개사", "레드로버·아이에이치큐 2개사에 집중", "amb")])
 
     st.markdown(f'<div class="panel"><span class="h">읽는 법</span>'
-                f'"연결"은 <b>이후 연도에 의견변형이 나타났다</b>는 뜻이고, "사유 일치"는 '
-                f'<b>선행 핵심감사사항의 회계쟁점이 뒤의 의견변형 근거에 다시 등장했다</b>는 뜻임. '
-                f'예를 들어 아이에이치큐는 FY2021 영업권 손상을 핵심감사사항으로 받았고 이후 FY2022 '
-                f'의견거절 근거가 "자산의 실재성·평가 증거 미확보"였음 — 그 핵심감사사항은 '
-                f'경고로서 실제 의미가 있었던 것임.</div>', unsafe_allow_html=True)
+                f'"<b>{n_link}건</b>"은 이후 연도에 의견변형이 나타난 경우이고, "<b>{n_match}건</b>"은 '
+                f'그중 <b>선행 핵심감사사항의 회계쟁점이 뒤의 의견변형 근거에 같은 사유로 다시 '
+                f'등장한</b> 경우임. 예를 들어 아이에이치큐는 FY2021 영업권 손상을 핵심감사사항으로 '
+                f'받았고 이후 FY2022 의견거절 근거가 "자산의 실재성·평가 증거 미확보"였음 — 그 '
+                f'핵심감사사항은 경고로서 실제 의미가 있었던 것임.</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="panel"><span class="h">읽어낸 것</span>'
-                f'연결은 {n_link}/{n_mod}건({n_link/n_mod*100:.0f}%)으로 절반에 못 미치고, 그중 '
-                f'사유까지 일치한 것은 {n_match}건뿐임. 일치한 사례도 {firms_match}개사(레드로버·'
-                f'아이에이치큐)에 몰려 있어 일반화할 수 없음. 다만 감사인이 핵심감사사항에 수위를 '
-                f'조절해 적는다는 실무 관행을 고려하면, <b>연결이 약하다는 것 자체가 이 기재의 '
-                f'성격</b>을 보여주는 것으로 읽어야 함 — 핵심감사사항은 경보라기보다 그 해의 주의 '
-                f'기록에 가까움.</div>', unsafe_allow_html=True)
+                f'{n_link}건의 사례 역시 절반에 못 미치고({n_link}/{n_mod}건, '
+                f'{n_link/n_mod*100:.0f}%), 그중 사유까지 일치한 것은 {n_match}건뿐임. 일치한 '
+                f'사례도 {firms_match}개사(레드로버·아이에이치큐)에 몰려 있어 일반화할 수 없음. '
+                f'실무적으로, 핵심감사사항은 수위가 조절될 수 있으며, 일반적으로 수익인식과 '
+                f'회계추정치로 제시됨을 고려하면, <b>핵심감사사항을 의견변형의 경보라고 볼 여지는 '
+                f'희박하다</b>고 볼 수 있음.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
     st.markdown("#### 실제로 이어진 사례")
     show = s.copy()
     show["사유 일치"] = show.일치.map({1: "일치", 0: "불일치"})
-    show = show[["기업명", "군", "선행연도", "선행기재", "후행연도", "후행기재",
-                "간격", "사유 일치", "사유일치"]].rename(columns={"사유일치": "일치한 사유"})
-    st.dataframe(show.sort_values(["기업명", "후행연도"]), use_container_width=True,
-                 hide_index=True, height=330)
-
-    st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
-    st.markdown("#### 부수 확인 — 핵심감사사항 유형별 이후 위험도")
-    t = kam.groupby(["corp_code", "fy"]).kam_type.apply(set).rename("types").reset_index()
-    d = pan.merge(t, on=["corp_code", "fy"], how="inner")
-    d = d[d.sig_2y.notna()]
-    rows = []
-    for ty in sorted(kam.kam_type.unique()):
-        has = d.types.apply(lambda s: ty in s)
-        if int(has.sum()) < 5:
-            continue
-        rows.append(dict(유형=ty, 보유=int(has.sum()),
-                         보유군=round((d[has].sig_2y == 1).mean() * 100, 1),
-                         미보유군=round((d[~has].sig_2y == 1).mean() * 100, 1)))
-    r = pd.DataFrame(rows).sort_values("보유군", ascending=False)
-    fig = go.Figure()
-    yl = [b(x) for x in r.유형[::-1]]
-    fig.add_bar(y=yl, x=r.보유군[::-1], name=b("해당 유형 보유"), orientation="h",
-                marker_color=CORAL)
-    fig.add_bar(y=yl, x=r.미보유군[::-1], name=b("미보유"), orientation="h", marker_color=MUTE)
-    fig.update_layout(title="유형별 2년 내 후속 감사결과 발생률 (%)", barmode="group")
-    chart(fig, h=max(340, 30 * len(r) + 90))
-    st.markdown('<div class="panel"><span class="h">수익인식은 오히려 안전 신호</span>'
-                '수익인식이 핵심감사사항인 firm-year의 후속 발생률은 <b>1.9%</b>로, 미보유군(9.5%)보다 '
-                '뚜렷하게 낮음(p=0.003). 기업 단위로 다시 재도 5.1% vs 28.6%(p=0.004)로 유지됨. '
-                '정상 영업 중인 기업만 수익인식이 핵심위험이 되고, 존속이 흔들리면 쟁점이 '
-                '계속기업·자산손상으로 옮겨가기 때문임. '
-                '<b>핵심감사사항 유형은 위험의 예측이라기보다 기업의 현재 상태를 반영함.</b></div>',
-                unsafe_allow_html=True)
+    show["선행"] = "FY" + show.선행연도.astype(str) + " · " + show.선행기재
+    show["후행"] = "FY" + show.후행연도.astype(str) + " · " + show.후행기재
+    show = show[["기업명", "군", "선행", "후행", "간격", "사유 일치", "사유일치"]].rename(
+        columns={"사유일치": "일치한 사유", "간격": "간격(년)"})
+    st.dataframe(show.sort_values("기업명"), use_container_width=True, hide_index=True,
+                height=330, column_config={
+                    "기업명": st.column_config.TextColumn(width="small"),
+                    "군": st.column_config.TextColumn(width="small"),
+                    "선행": st.column_config.TextColumn(width="medium"),
+                    "후행": st.column_config.TextColumn(width="medium"),
+                    "간격(년)": st.column_config.NumberColumn(width="small"),
+                    "사유 일치": st.column_config.TextColumn(width="small"),
+                    "일치한 사유": st.column_config.TextColumn(width="large"),
+                })
 
 # ─────────────────────────────────────────────── 03
 elif sec.startswith("03"):
