@@ -235,7 +235,7 @@ if sec.startswith("01"):
     e2, g2 = share(G1, [T1, T2]), share(G2, [T1, T2])
     e1, g1 = share(G1, [T1]), share(G2, [T1])
 
-    head("Section 01 · 무엇을 위험으로 보았나",
+    head("Section 01 · 콘텐츠산업의 핵심감사사항(KAM)",
          "콘텐츠 산업 기업의 핵심감사사항",
          f"<b>E&amp;M 부문</b>(음악·방송·영화·드라마·웹툰, 78개사)과 "
          f"<b>Game 부문</b>(31개사, 대조군)의 핵심감사사항 {len(kam)}개를 13개 유형으로 분류함. "
@@ -340,7 +340,7 @@ elif sec.startswith("02"):
     firms_link, firms_match = s.기업명.nunique(), s[s.일치 == 1].기업명.nunique()
     gap = s.간격.median()
 
-    head("Section 02 · 그 위험은 실제로 핵심이었나",
+    head("Section 02 · KAM은 실제로 핵심적인 위험이었는가 (KAM→의견변형)",
          "지목된 핵심감사사항이 이후 연도에<br>의견변형으로 이어졌는가", "")
     figs([("KAM → 이후 의견변형", f"{n_link}건",
            f"의견변형 {n_mod}건 중 {n_link/n_mod*100:.0f}% · {firms_link}개사", "amb"),
@@ -393,7 +393,7 @@ elif sec.startswith("03"):
     key = set(zip(bas.corp_code, bas.fy))
     carry = sum(1 for c, f in key if (c, f - 1) in key)
     n_carryover = int(bas.사유.str.contains("기초잔액").sum())  # "읽어낸 것" 패널과 같은 계산 재사용
-    head("Section 03 · 의견변형은 왜 나오는가",
+    head("Section 03 · 의견변형 사유",
          "콘텐츠 산업 기업의 의견변형 사유",
          f"FY2019~2025 동안 의견변형은 <b>{n}건</b>, 사유는 모두 감사범위 제한(부적정의견은 "
          f"0건).<br><br>의견변형 근거 단락을 전수 추출해 사유를 유형화한 결과, 절반에 가까운 "
@@ -454,7 +454,7 @@ elif sec.startswith("03"):
 
 # ─────────────────────────────────────────────── 04
 else:
-    head("Section 04 · 만드는 과정",
+    head("Section 04 · 방법론, 한계점",
          "공개 API가 주지 않는 데이터를<br>원문에서 꺼내 검증했다",
          "감사보고서 전문은 공시유형 검색으로 받을 수 없음(거래소 「감사보고서제출」 공시는 "
          "표지 3천여 자뿐). <b>사업보고서 원문 ZIP에 첨부된 별도·연결 감사보고서</b>를 통해서만 "
