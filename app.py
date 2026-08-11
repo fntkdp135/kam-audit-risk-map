@@ -303,6 +303,9 @@ if sec.startswith("01"):
         st.markdown('<div class="body">항목을 펼치면 감사보고서 내 '
                     '<b>[핵심감사사항] 단락의 원문 내용이 출력</b>됨.</div>',
                     unsafe_allow_html=True)
+        st.caption("일부 항목은 DART 원문의 서식(단어 중간에서 분리되는 HTML 태그) 특성상 "
+                   "항목명이나 본문 일부가 짧게 표시되거나 생략될 수 있음. 표시 로직의 한계이며 "
+                   "원본 데이터는 보존됨.")
         f = st.selectbox("기업", ["(전체)"] + sorted(v.기업명.unique()))
         vv = (v if f == "(전체)" else v[v.기업명 == f]).sort_values(["fy", "기업명"],
                                                               ascending=[False, True])
